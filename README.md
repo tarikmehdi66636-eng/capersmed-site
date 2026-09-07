@@ -56,6 +56,27 @@ then re-save permalinks. The archive, the single URLs and the taxonomy all follo
 
 ### Deploying to a live server
 
+The four steps are scripted in `bin/deploy-stackrecipes.sh` — run it from the
+repo root:
+
+```bash
+sudo ./bin/deploy-stackrecipes.sh
+```
+
+Paths are overridable if your layout differs:
+
+```bash
+SRC=/srv/capersmed-site/stackrecipes-case-studies \
+WP=/var/www/stackrecipes.com \
+FPM=php8.3-fpm \
+sudo -E ./bin/deploy-stackrecipes.sh
+```
+
+It refuses to run if the plugin or the WordPress install is not where it
+expects, rather than half-deploying.
+
+Or run the same steps by hand:
+
 ```bash
 # Copy in. On a re-deploy prefer rsync, so files removed from the plugin are
 # removed from the server too — cp -r merges and leaves stale files behind.
