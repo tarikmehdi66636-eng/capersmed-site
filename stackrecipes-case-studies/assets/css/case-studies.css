@@ -397,6 +397,20 @@
 	border-bottom: 0;
 }
 
+/* Text tables (hardware audits, decision matrices) stay left-aligned. */
+.srcs-table--text :where(td, th) + :where(td, th) {
+	font-variant-numeric: normal;
+	text-align: left;
+}
+
+/* Parenthetical qualifiers inside a cell. */
+.srcs-table small {
+	color: var(--srcs-muted);
+	display: block;
+	font-size: 0.82em;
+	margin-top: 0.15rem;
+}
+
 .srcs-table .is-total :where(th, td) {
 	background: var(--srcs-bg-soft);
 	border-top: 2px solid var(--srcs-line-strong);

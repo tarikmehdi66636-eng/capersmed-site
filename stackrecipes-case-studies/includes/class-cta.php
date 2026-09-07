@@ -8,9 +8,27 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Renders the CTA banner, appends it to teardowns, and exposes [case_study_cta].
+ * Renders the CTA banner and exposes [case_study_cta].
  */
 class SRCS_CTA {
+
+	/**
+	 * Friendlier attribute names accepted by the shortcode, mapped to the
+	 * canonical keys. shortcode_atts() drops unknown attributes silently, so
+	 * without this a [case_study_cta title="..."] call renders the defaults
+	 * and looks like it worked.
+	 *
+	 * @var array<string,string>
+	 */
+	const ALIASES = array(
+		'title'        => 'heading',
+		'subtitle'     => 'body',
+		'text'         => 'body',
+		'button_label' => 'primary_label',
+		'button_url'   => 'primary_url',
+		'cta_label'    => 'primary_label',
+		'cta_url'      => 'primary_url',
+	);
 
 	/**
 	 * Hook registration.
@@ -41,29 +59,82 @@ class SRCS_CTA {
 	}
 
 	/**
+	 * Translate alias keys to canonical ones, keeping explicit canonical values.
+	 *
+	 * @param array $atts Raw attributes.
+	 * @return array
+	 */
+	protected static function normalize( array $atts ) {
+		foreach ( self::ALIASES as $alias => $canonical ) {
+			if ( isset( $atts[ $alias ] ) && ! isset( $atts[ $canonical ] ) ) {
+				$atts[ $canonical ] = $atts[ $alias ];
+			}
+
+			unset( $atts[ $alias ] );
+		}
+
+		return $atts;
+	}
+
+	/**
 	 * Build the banner markup.
 	 *
 	 * @param array $args Overrides for defaults().
 	 * @return string
 	 */
 	public static function render( array $args = array() ) {
-		$a = wp_parse_args( $args, self::defaults() );
+		$args = self::normalize( $args );
+		$cta  = wp_parse_args( array_filter( $args, 'strlen' ), self::defaults() );
+
+		/*
+		 * A caller that names its own single button means one button. Without
+		 * this the default second button tags along and both point at /retail/.
+		 */
+		$wants_one_button = ( isset( $args['primary_label'] ) || isset( $args['primary_url'] ) )
+			&& ! isset( $args['secondary_label'] )
+			&& ! isset( $args['secondary_url'] );
+
+		if ( $wants_one_button ) {
+			$cta['secondary_label'] = '';
+			$cta['secondary_url']   = '';
+		}
 
 		ob_start();
-		srcs_get_part( 'cta-retail.php', array( 'cta' => $a ) );
+		srcs_get_part( 'cta-retail.php', array( 'cta' => $cta ) );
 
 		return (string) ob_get_clean();
 	}
 
 	/**
-	 * [case_study_cta heading="..." body="..." primary_url="/retail/"]
+	 * The banner for one case study, with its per-post copy applied.
+	 *
+	 * Lets a teardown carry its own CTA without embedding a shortcode in the
+	 * post body, where wpautop mangles multi-line attributes and the banner
+	 * would render twice alongside the one in the template.
+	 *
+	 * @param int|null $post_id Post ID. Defaults to the current post.
+	 * @return string
+	 */
+	public static function for_post( $post_id = null ) {
+		$post_id = $post_id ? (int) $post_id : get_the_ID();
+
+		$overrides = array(
+			'heading'       => srcs_meta( 'cta_heading', $post_id ),
+			'body'          => srcs_meta( 'cta_body', $post_id ),
+			'primary_label' => srcs_meta( 'cta_label', $post_id ),
+			'primary_url'   => srcs_meta( 'cta_url', $post_id ),
+		);
+
+		return self::render( array_filter( $overrides, 'strlen' ) );
+	}
+
+	/**
+	 * [case_study_cta title="..." subtitle="..." button_url="/retail/" button_label="..."]
 	 *
 	 * @param array|string $atts Shortcode attributes.
 	 * @return string
 	 */
 	public static function shortcode( $atts ) {
-		$atts = shortcode_atts( self::defaults(), (array) $atts, 'case_study_cta' );
-
-		return self::render( $atts );
+		return self::render( (array) $atts );
 	}
 }

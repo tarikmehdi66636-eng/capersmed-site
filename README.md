@@ -32,8 +32,9 @@ and the three-year P&L table.
 **`/case-studies/apparel-boutique-shopify-pos-pro-migration/`**
 *Case Breakdown: Migrating an Apparel Boutique off Shopify POS Pro to Single-Database
 Omnichannel* — the stacked subscription baseline ($105 + $89 + $65 = $259/month), why webhook
-sync double-sold the same dress, the variant matrix (3,400 SKUs across size × colour), a cutover
-built around a live storefront rather than a closed shop, and the three-year comparison.
+sync double-sold the same dress, the move to Odoo 18 Community on a private VPS, untangling 3,400
+variant SKUs (42 duplicate barcodes included), the hardware audit that kept 75% of the counter,
+the Sunday-to-Tuesday cutover, and the three-year comparison ($9,324 vs $1,629).
 
 ---
 
@@ -185,6 +186,8 @@ Teardown bodies use a small vocabulary:
 | `srcs-note` | Caveat callout — first `<strong>` becomes the heading line |
 | `srcs-timeline` on `<ol>` | Cutover steps; each `<li>` opens with `<span class="srcs-timeline__when">` |
 | `srcs-table-wrap` + `srcs-table` | Scrollable comparison tables; `is-total` on a row, `srcs-pos` / `srcs-neg` on a cell |
+| `srcs-table--text` | Text tables (hardware audits) — keeps every column left-aligned |
+| `<small>` inside a cell | Muted qualifier under a figure |
 | `srcs-wide` | Break the block out of the reading measure |
 
 ---
@@ -192,14 +195,40 @@ Teardown bodies use a small vocabulary:
 ## CTA
 
 The `/retail/` banner renders automatically at the foot of the archive and of every teardown.
-Drop it anywhere else with the shortcode:
+
+### Per-teardown copy
+
+Use the **CTA banner** box in the sidebar of the post editor (heading, body, button label, button
+URL). Blank fields fall back to the site-wide copy. This is the right place for teardown-specific
+wording — it keeps the banner out of the post body, where `wpautop` mangles multi-line shortcode
+attributes and the banner would render twice.
+
+### Shortcode
+
+For placing the banner elsewhere — a landing page, a sidebar:
 
 ```
 [case_study_cta]
-[case_study_cta heading="Running a similar store layout?" primary_url="/retail/"]
+[case_study_cta title="Running an apparel boutique on Shopify POS Pro?" button_url="/retail/" button_label="Explore turnkey omnichannel setup"]
 ```
 
-Change the copy site-wide from the theme's `functions.php`:
+Canonical attributes are `heading`, `body`, `primary_label`, `primary_url`, `secondary_label`,
+`secondary_url`. These aliases are also accepted, because they are what people reach for:
+
+| Alias | Maps to |
+| --- | --- |
+| `title` | `heading` |
+| `subtitle`, `text` | `body` |
+| `button_label`, `cta_label` | `primary_label` |
+| `button_url`, `cta_url` | `primary_url` |
+
+Naming a primary button without a secondary one renders a single button, rather than letting the
+default second button tag along.
+
+If a teardown body does contain the shortcode, the template's automatic banner is suppressed for
+that post so only one renders.
+
+### Site-wide copy
 
 ```php
 add_filter( 'srcs_cta_defaults', function ( $defaults ) {

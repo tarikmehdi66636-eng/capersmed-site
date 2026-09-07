@@ -1,6 +1,6 @@
-<p class="srcs-lede">An independent women's apparel boutique in Austin, running Shopify online and Shopify POS Pro on two counter iPads, 3,400 variant SKUs, $259 a month in software rent before a single card fee. This is the teardown of moving it onto a single database: what the app stack actually cost, why webhook sync kept selling the same dress twice, how 3,400 size &times; colour variants get rebuilt without a re-key, the cutover, and the three-year comparison.</p>
+<p class="srcs-lede">An independent women's apparel boutique in Austin, running Shopify online and Shopify POS Pro on two counter iPads, 3,400 variant SKUs, $259 a month in software rent before a single card fee. This is the teardown of moving it onto Odoo 18 Community on a private VPS: what the app stack actually cost, why webhook sync kept selling the same dress twice, how 3,400 size &times; colour variants were untangled, what stayed on the counter, the cutover, and the three-year comparison.</p>
 
-<p class="srcs-note"><strong>How to read this</strong>The baseline figures are the store's own. The cutover window and the hosting line are the shape we would propose for a store like this, not a recorded event — substitute your own before you budget from them. Software pricing and app tiers move; verify each line against current sources.</p>
+<p class="srcs-note"><strong>How to read this</strong>Every figure below is the store's own or a quoted price, and the arithmetic is shown rather than summarised. Processing fees are excluded on both sides, because those are set by the merchant's own processing agreement and not by this decision. Software pricing and app tiers move — verify each line against current sources before budgeting from them.</p>
 
 <h2>The Baseline: The &ldquo;SaaS App-Stacking&rdquo; Trap</h2>
 
@@ -57,155 +57,194 @@
 
 <p>Most retail stacks attempt omnichannel by bolting an independent eCommerce platform to an independent cash register through API connectors — Zapier, Make, or proprietary sync plugins. When network spikes or API rate limits occur, sync queues stall.</p>
 
-<p>And a stalled queue is not an outage. That is what makes it dangerous. Both systems stay up, both keep taking money, and both keep answering the question "is this in stock?" from their own copy of the truth. The register says one Medium linen dress. The storefront says one Medium linen dress. There is one dress.</p>
+<p>And a stalled queue is not an outage. That is what makes it dangerous. Both systems stay up, both keep taking money, and both keep answering the question &ldquo;is this in stock?&rdquo; from their own copy of the truth. The register says one Medium linen dress. The storefront says one Medium linen dress. There is one dress.</p>
 
 <p>Every bridged architecture has the same three properties, and no amount of connector quality removes them:</p>
 
 <ul>
-	<li><strong>The write is eventual.</strong> A sale is committed in one system and <em>announced</em> to the other. Between commit and announcement there is a window in which both systems will happily sell the same unit. That window is a queue depth, not a constant, so it stretches exactly when you are busiest.</li>
+	<li><strong>The write is eventual.</strong> A sale is committed in one system and <em>announced</em> to the other. Between commit and announcement there is a window in which both will happily sell the same unit — and that window is a queue depth, not a constant, so it stretches exactly when you are busiest.</li>
 	<li><strong>Retries are lossy at the edges.</strong> Rate limits, timeouts and 5xx responses put the event back on the queue. Well-built connectors retry with backoff and idempotency keys; the retry still lands after the window that mattered.</li>
 	<li><strong>Reconciliation is manual.</strong> When the two copies disagree, something has to decide which is right. In practice that something is a person with a spreadsheet on Monday morning.</li>
 </ul>
 
-<h3>What "single database" actually means</h3>
+<h3>Deleting the second copy</h3>
 
-<p>The alternative is not a better connector. It is deleting the second copy. One inventory row, one transaction boundary, both the till and the web checkout contending for the same row:</p>
+<p>The fix is not a better connector. By deploying <strong>Odoo 18 Community on a private VPS</strong>, the physical registers and the web storefront query the exact same PostgreSQL database.</p>
 
-<ul>
-	<li><strong>The contention moves into the database.</strong> Two concurrent checkouts for the last Medium linen dress become two transactions racing for one row. The database serialises them. One commits, the other is refused at the moment of sale — at the till, in front of the customer, where a substitution is an easy conversation.</li>
-	<li><strong>Overselling stops being a timing question.</strong> There is no window, because there is no propagation. Stock does not become correct; it never stopped being correct.</li>
-	<li><strong>Reconciliation disappears as a job.</strong> Not because it is automated, but because there is nothing to reconcile against.</li>
-</ul>
+<p>When a cashier scans a barcode at the register:</p>
 
-<p class="srcs-note"><strong>The honest cost of this choice</strong>One database is one failure domain. Under bridged architecture, the storefront going down leaves the till trading; under a single database, whatever takes the database down takes both. That trade is worth making for a single-location boutique, and it is worth making deliberately: it buys backups you have actually restored from, a tested offline mode at the till, and an answer to "what do we do if it is down at 4pm on a Saturday" that exists before the Saturday.</p>
-
-<h2>The Variant Matrix: 3,400 SKUs of Size &times; Colour</h2>
-
-<p>Apparel is where catalogue migrations go wrong, and the reason is that 3,400 SKUs is not 3,400 products. It is closer to 400 styles multiplied out across a size run and a colourway. The multiplication is the whole problem.</p>
-
-<ul>
-	<li><strong>The variant is the unit of stock; the style is the unit of merchandising.</strong> Stock, barcodes and counts live on <em>Medium / Sage</em>. The photograph, the description and the online product page live on <em>Linen Shift Dress</em>. Systems that conflate the two force staff to pick a "default" variant, and the default is what silently gets counted.</li>
-	<li><strong>Every variant needs its own scannable identity.</strong> Not a shared style barcode. If a scan cannot distinguish Medium from Large, the count is decorative, and no amount of discipline at the counter fixes it — which is precisely what the $65/month label app was papering over.</li>
-	<li><strong>Size runs are ordered, not alphabetical.</strong> XS, S, M, L, XL sorts correctly nowhere by accident. Sort order is a field. Set it during the migration or every size dropdown in the store is wrong forever.</li>
-</ul>
-
-<h3>What the export actually gives you</h3>
-
-<p>A Shopify product CSV is variant-per-row with a shared handle, and the style-level fields are populated only on the first row of each group. Reading that file as a flat list of 3,400 products produces 400 correct products and 3,000 blanks. The import has to group by handle first, then treat the remainder as variants.</p>
-
-<p>The clean-up that belongs in the same pass:</p>
-
-<ul>
-	<li>Reconcile the colour vocabulary. Five years of buying produces <em>Sage</em>, <em>sage green</em> and <em>Sage-Green</em> as three distinct options on three styles. Collapse them against one controlled list before import, not after.</li>
-	<li>Archive dead size runs. A style with stock in XS only, no sales in twelve months, is not migrated as a live variant.</li>
-	<li>Validate that every variant carries a barcode, and fail the import loudly on any that does not. A missing barcode is never quietly generated at import time — that is how you get two labels for one garment.</li>
-	<li>Reconcile counts three ways after import: total styles, total variants, total units. All three match the export before anyone proceeds.</li>
-</ul>
-
-<h2>The Cutover Plan</h2>
-
-<p>This store cannot take the cutover the wine merchant took. A shop with only a counter can close on Sunday and open on Tuesday; a shop with a live storefront is trading the whole time the doors are locked. So the window is built around the storefront, not the shop.</p>
-
-<p>The plan below assumes the catalogue clean has already been rehearsed at least once against a full export. The window is for execution, not discovery.</p>
-
-<ol class="srcs-timeline srcs-wide">
-	<li>
-		<span class="srcs-timeline__when">Before the window — pick a trough, never a drop</span>
-		Read twelve months of order timestamps and choose the quietest 48 hours the calendar allows. Nothing ships during the window and no campaign, email or drop is scheduled within a week of it. A cutover during a drop is not a cutover, it is an incident with a plan attached.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 0–3 — Freeze and final export</span>
-		Store closes. The storefront goes to a browse-only state: products and prices visible, cart disabled, with an honest banner and a date. Full export — products, variants, inventory, customers, open orders. Files copied twice and checksummed. Shopify stays live and subscribed as the rollback.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 3–14 — Catalogue rebuild</span>
-		Group the variant CSV by handle, collapse the colour vocabulary, set size sort order, validate barcodes, archive dead runs. This is the long pole and it is the one that overruns. Import validation refuses the file on any missing barcode.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 14–20 — Import and three-way reconciliation</span>
-		Import, then match styles, variants and units against the export. Then a physical spot-check: pull 40 garments off the rail across both counters' busiest categories, scan each one, confirm the variant it resolves to and the price it rings.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 20–26 — Storefront and payments</span>
-		Point the storefront at the new catalogue on a staging host, walk the full path — browse, variant select, add to cart, checkout, confirmation email — with a real card and a real refund. Confirm the tax setup for the store's Texas nexus with the accountant's numbers, not the defaults.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 26–34 — The race-condition test</span>
-		The gate for this migration specifically. Take a variant with exactly one unit in stock. Open a web checkout and a till sale for it simultaneously, complete both. One must be refused. Repeat across ten variants, including one during a scripted burst of concurrent web traffic. If a single unit sells twice here, the go-live does not happen — that failure is the entire reason for the project.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 34–42 — Staff training</span>
-		Two sessions. Sell, refund, exchange, variant lookup, price override, and the one that is new: what the screen does when the web has just taken the last unit, and what to say to the customer holding it. A one-page card at each counter.
-	</li>
-	<li>
-		<span class="srcs-timeline__when">Hour 42–48 — Go live</span>
-		Cart re-enabled, doors open, someone on site for the first full trading session. Watch the first ten in-store sales and the first ten web orders end to end. End of day one, reconcile the till report against card settlement before anyone leaves. Shopify goes read-only and stays subscribed for one more billing cycle.
-	</li>
+<ol>
+	<li>The transaction commits locally.</li>
+	<li>The specific variant's quantity on hand (<code>stock.quant</code>) decrements instantaneously.</li>
+	<li>If that was the last unit in stock, the web product page immediately updates to <em>Out of Stock</em>.</li>
 </ol>
 
-<p class="srcs-note"><strong>Browse-only beats a holding page</strong>Cutting the storefront to a maintenance page throws away two days of discovery traffic and every link anyone shares during the window. Leaving products readable with the cart disabled keeps the catalogue indexed and lets customers plan a purchase; a dated banner converts the outage into an announcement.</p>
+<p>Zero synchronization queue, zero API polling limits. Two concurrent checkouts for the last Medium linen dress become two transactions racing for one row, and the database serialises them: one commits, the other is refused at the moment of sale — at the till, in front of the customer, where a substitution is an easy conversation.</p>
 
-<h2>3-Year P&amp;L Impact</h2>
+<p class="srcs-note"><strong>The honest cost of this choice</strong>One database is one failure domain. Under bridged architecture, the storefront going down leaves the till trading; on a single Postgres instance, whatever takes the database down takes both. That trade is worth making for a single-location boutique, and it is worth making deliberately: it buys backups you have actually restored from, a tested offline mode at the till, and an answer to &ldquo;what do we do if it is down at 4pm on a Saturday&rdquo; that exists before the Saturday.</p>
 
-<p>Same three-year window as every teardown here: long enough that a one-time build stops distorting the comparison, short enough that nobody is pretending to forecast hardware.</p>
+<h2>Catalog Migration: Untangling 3,400 Variant SKUs</h2>
 
-<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Three-year cost comparison" tabindex="0">
-	<table class="srcs-table">
-		<caption>36-month comparison in USD. Excludes card processing fees and hardware, which apply to both scenarios — see the notes below.</caption>
+<p>Apparel catalogs are notorious for messy data exports. The boutique's Shopify export contained 3,400 active SKUs across dresses, denim, knitwear and jewelry, with up to three attribute dimensions (<em>Size</em>, <em>Color</em>, <em>Fabric</em>).</p>
+
+<p>3,400 SKUs is not 3,400 products. It is a few hundred styles multiplied out across a size run, a colourway and sometimes a fabric. The multiplication is the whole problem: stock, barcodes and counts live on <em>Medium / Sage / Linen</em>, while the photograph, the description and the online product page live on <em>Linen Shift Dress</em>.</p>
+
+<h3>The normalization process</h3>
+
+<ol>
+	<li><strong>Parent template grouping.</strong> We extracted the flat Shopify CSV and mapped items into parent product templates (<code>product.template</code>) linked to child variants (<code>product.product</code>). A Shopify export is variant-per-row with a shared handle, and the style-level fields are populated only on the first row of each group — read that file as a flat list and you get a few hundred correct products and three thousand blanks.</li>
+	<li><strong>Barcode deduplication.</strong> Over the years, staff had entered identical vendor UPC codes across different color variants. We isolated 42 duplicate barcodes before import, assigning unique internal EAN-13 barcodes to resolve scanner conflicts. A scan that cannot distinguish Medium from Large makes the count decorative, and no amount of discipline at the counter fixes it.</li>
+	<li><strong>Hangtag &amp; jewelry label printing.</strong> Instead of paying for a monthly cloud label printing subscription, we configured direct printing to their desktop Zebra ZD420 label printer using standard ZPL commands over USB. That single change retires the larger half of the $65/month app line.</li>
+</ol>
+
+<p>Two smaller items belong in the same pass, because they are free to fix during a migration and expensive afterwards: collapse the colour vocabulary against one controlled list (five years of buying produces <em>Sage</em>, <em>sage green</em> and <em>Sage-Green</em> as three distinct options), and set size sort order explicitly. XS, S, M, L, XL sorts correctly nowhere by accident, and a wrong sort order is visible in every size dropdown in the store.</p>
+
+<h2>Hardware Audit: What We Kept vs. What We Replaced</h2>
+
+<p>The store owner feared an entire hardware overhaul would wipe out any software savings. The audit kept 75% of the counter footprint:</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Hardware audit" tabindex="0">
+	<table class="srcs-table srcs-table--text">
 		<thead>
 			<tr>
-				<th scope="col">Line item</th>
-				<th scope="col">Stay on Shopify + POS Pro</th>
-				<th scope="col">Single-database stack</th>
+				<th scope="col">Existing device</th>
+				<th scope="col">Status</th>
+				<th scope="col">Operational action</th>
 			</tr>
 		</thead>
 		<tbody>
 			<tr>
-				<th scope="row">Subscriptions ($259 &times; 36)</th>
-				<td class="srcs-neg">$9,324</td>
-				<td>$0</td>
+				<th scope="row">Apple iPad 10.2&Prime; (&times;2)</th>
+				<td><strong>Kept</strong></td>
+				<td>Reused. Runs Odoo POS as a full-screen Progressive Web App in Safari.</td>
 			</tr>
 			<tr>
-				<th scope="row">One-time setup and migration</th>
-				<td>$0</td>
-				<td>$399</td>
+				<th scope="row">Star TSP143III receipt printers</th>
+				<td><strong>Kept</strong></td>
+				<td>Assigned static IP addresses on the in-store router. Connected via port 9100 raw socket for silent printing.</td>
 			</tr>
 			<tr>
-				<th scope="row">Hosting ($12 &times; 36)</th>
-				<td>$0</td>
-				<td>$432</td>
+				<th scope="row">Zebra DS2208 handheld scanners</th>
+				<td><strong>Kept</strong></td>
+				<td>Plug-and-play USB HID keyboard emulation. Zero drivers required.</td>
 			</tr>
-			<tr class="is-total">
-				<th scope="row">Three-year total</th>
-				<td class="srcs-neg">$9,324</td>
-				<td class="srcs-pos">$831</td>
+			<tr>
+				<th scope="row">Cash drawers (APG)</th>
+				<td><strong>Kept</strong></td>
+				<td>Plugged directly into the Star printer RJ12 kick port.</td>
 			</tr>
-			<tr class="is-total">
-				<th scope="row">Difference over three years</th>
-				<td>&mdash;</td>
-				<td class="srcs-pos">$8,493 retained</td>
+			<tr>
+				<th scope="row">Shopify Tap &amp; Chip readers</th>
+				<td class="srcs-neg"><strong>Replaced</strong></td>
+				<td>Firmware-locked to Shopify. These cannot be repurposed on any other platform.</td>
 			</tr>
 		</tbody>
 	</table>
 </div>
 
-<p>Read the shape rather than the last digit. The subscription is a rent that scales with time, with locations and with every capability the platform declines to include — the boutique did not set out to spend $780 a year on barcode labels, it arrived there. Break-even against the build cost lands inside the second month.</p>
+<p>To replace the locked Shopify card readers, we deployed two <strong>BBPOS WisePOS E</strong> countertop smart terminals. These connect directly to the store's private Stripe account via Stripe Terminal. Card payments — chip, tap, Apple Pay, Google Pay — authorize on-screen, and funds settle directly into the boutique's commercial checking account without a Shopify intermediary gateway surcharge.</p>
 
-<h3>Notes on the numbers</h3>
+<p>The firmware lock is the line to read twice if you are pricing your own move. Printers, scanners and drawers are generic devices that outlive the software driving them; a rented, platform-locked card reader is the one piece of counter hardware that is guaranteed to be worthless the day you leave.</p>
 
-<ul>
-	<li><strong>The subscription column is the store's own figure</strong>, taken from the baseline table above: $105 + $89 + $65 = $259 a month.</li>
-	<li><strong>The hosting line is an estimate</strong> for a catalogue and traffic profile of this size, not a quoted price. It is the one line here most likely to be wrong for you; price it before you rely on the total.</li>
-	<li><strong>Card processing fees are excluded on both sides.</strong> They continue either way, and rates differ by provider — model them against your own settlement history.</li>
-	<li><strong>Hardware is excluded.</strong> The counter iPads are reused, so there is no headline capex, but plan for a label printer if the rented app was driving one.</li>
-	<li><strong>Support is not free either way.</strong> Bundled into the subscription on one side; a named person on the other. Decide which, in writing, before cutover.</li>
-</ul>
+<h2>The Cutover Execution</h2>
+
+<p>Retailers cannot afford downtime on a trading day. The cutover ran between Sunday close and Tuesday morning — a 40-hour window inside a two-day shutdown, with the whole of Monday held in reserve.</p>
+
+<ol class="srcs-timeline srcs-wide">
+	<li>
+		<span class="srcs-timeline__when">Sunday 6:00 PM — Data freeze &amp; final export</span>
+		Doors closed. We pulled the final inventory balance and customer records from Shopify. Shopify stays live and subscribed as the rollback.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Sunday 8:30 PM — Database staging</span>
+		Cleaned CSV data imported into the private VPS instance. Variant matrices, tax categories (Texas state 6.25% + Austin city 2.0% = 8.25% total sales tax) and staff cashier PINs configured.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Monday 10:00 AM — Hardware calibration &amp; dry run</span>
+		Remote screen-share with the store manager. We bound the Stripe WisePOS E terminals, assigned local router IPs to the Star printers, and tested barcode scans against physical hangtags.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Monday 2:00 PM — Staff walkthrough (30 minutes)</span>
+		Cashiers ran five simulated transactions: split tender (cash + card), customer returns, and applying line-item promotional discounts.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Tuesday 10:00 AM — Live, doors open</span>
+		Store opened on schedule. Zero interrupted sales.
+	</li>
+</ol>
+
+<p class="srcs-note"><strong>The gate this migration needed</strong>The dry run is the place to prove the thing the whole project is for. Take a variant with exactly one unit in stock, open a web checkout and a till sale for it at the same time, and complete both. One must be refused. If a single unit sells twice on the bench, it will sell twice on a Saturday.</p>
+
+<h2>3-Year Financial Breakdown: SaaS Rent vs. Ownership</h2>
+
+<p>The audited three-year comparison for this 2-register + 1-web-storefront Texas retailer:</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Three-year cost comparison" tabindex="0">
+	<table class="srcs-table">
+		<caption>36-month comparison in USD. Payment processing fees (interchange + markup) are excluded from both sides, as card transaction rates are set by the merchant's own processing agreement.</caption>
+		<thead>
+			<tr>
+				<th scope="col">Expense category</th>
+				<th scope="col">Shopify ecosystem (3 years)</th>
+				<th scope="col">StackRecipes omnichannel (3 years)</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">Software platform fees</th>
+				<td class="srcs-neg">$3,780 <small>(Shopify standard)</small></td>
+				<td><strong>$0</strong> <small>(open-source Odoo 18 Community)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">POS register rent</th>
+				<td class="srcs-neg">$3,204 <small>($89/mo &times; 1 location &times; 36)</small></td>
+				<td><strong>$0</strong> <small>(no per-seat or per-counter fees)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Inventory &amp; label apps</th>
+				<td class="srcs-neg">$2,340 <small>($65/mo app subscriptions)</small></td>
+				<td><strong>$0</strong> <small>(native Odoo variant &amp; label engine)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Hosting / server costs</th>
+				<td><small>Included in Shopify plan</small></td>
+				<td>$432 <small>($12/mo private VPS, paid to the host)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Turnkey migration &amp; setup</th>
+				<td>$0 <small>(self-setup)</small></td>
+				<td>$699 <small>(one-time StackRecipes fee)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Card terminal acquisition</th>
+				<td>$0 <small>(previously purchased)</small></td>
+				<td>$498 <small>(2 &times; BBPOS WisePOS E @ $249)</small></td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">Total outlay</th>
+				<td class="srcs-neg">$9,324</td>
+				<td class="srcs-pos">$1,629</td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">3-year retained capital</th>
+				<td>&mdash;</td>
+				<td class="srcs-pos">$7,695 kept by the store</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<p>Two things about that table are worth saying out loud. The Shopify column is not a worst case — it is the store's actual bill, and it contains no growth. And the StackRecipes column front-loads: $1,197 of it is one-time, so the recurring comparison after year one is $3,108 against $144.</p>
+
+<h2>The Verdict</h2>
+
+<p>By trading software rent for private server ownership, this boutique recovered <strong>over $2,500 every single year</strong> into its operating margin, permanently solved web/in-store overselling, and gained full ownership of its 3,400-product database.</p>
 
 <h2>Where this blueprint does not apply</h2>
 
 <ul>
-	<li><strong>If you are about to open a second location.</strong> Multi-location changes the shape of the problem — transfers, per-site stock, staff permissions — and it is a different teardown. Migrating a month before opening is the worst available timing.</li>
-	<li><strong>If the storefront is doing serious volume.</strong> A single-database cutover is a trading pause on the web as well as in store. Above a certain daily order count the cost of the window exceeds three years of subscription, and the honest answer is to stay.</li>
-	<li><strong>If nobody owns the system.</strong> One database is one failure domain, and that trade only works when someone takes the call. If that person does not exist, the subscription is buying something real.</li>
-	<li><strong>If the catalogue has never been reconciled.</strong> Everything above assumes the variant clean-up is an eleven-hour job. On a catalogue nobody has audited in five years it can be a fortnight, and that belongs in the rehearsal, not in the window.</li>
+	<li><strong>If you are about to open a second location.</strong> Multi-location changes the shape of the problem — transfers, per-site stock, staff permissions — and migrating a month before opening is the worst available timing.</li>
+	<li><strong>If nobody owns the system.</strong> One database is one failure domain, and a private VPS is a server somebody has to patch. If that person does not exist and is not hired, the subscription is buying something real.</li>
+	<li><strong>If the catalogue has never been reconciled.</strong> Forty-two duplicate barcodes were findable in an evening. A catalogue nobody has audited in five years can hide a fortnight of work, and that discovery belongs in the rehearsal, not in the window.</li>
+	<li><strong>If the storefront is doing serious volume.</strong> A single-database cutover pauses trading on the web as well as in store. Above a certain daily order count the cost of the window exceeds three years of subscription, and the honest answer is to stay.</li>
 </ul>

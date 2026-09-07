@@ -31,6 +31,29 @@ class SRCS_Meta {
 	}
 
 	/**
+	 * Per-post CTA overrides. Blank falls back to the site-wide defaults.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function cta_fields() {
+		return array(
+			'cta_heading' => __( 'Heading', 'stackrecipes-cs' ),
+			'cta_body'    => __( 'Body', 'stackrecipes-cs' ),
+			'cta_label'   => __( 'Button label', 'stackrecipes-cs' ),
+			'cta_url'     => __( 'Button URL', 'stackrecipes-cs' ),
+		);
+	}
+
+	/**
+	 * Every editable field, across both boxes.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function all_fields() {
+		return array_merge( self::fields(), self::cta_fields() );
+	}
+
+	/**
 	 * Hook registration.
 	 *
 	 * @return void
@@ -47,7 +70,7 @@ class SRCS_Meta {
 	 * @return void
 	 */
 	public static function register_meta() {
-		foreach ( array_keys( self::fields() ) as $key ) {
+		foreach ( array_keys( self::all_fields() ) as $key ) {
 			register_post_meta(
 				SRCS_POST_TYPE,
 				'_srcs_' . $key,
@@ -55,7 +78,7 @@ class SRCS_Meta {
 					'type'              => 'string',
 					'single'            => true,
 					'show_in_rest'      => true,
-					'sanitize_callback' => 'sanitize_text_field',
+					'sanitize_callback' => ( 'cta_url' === $key ) ? 'esc_url_raw' : 'sanitize_text_field',
 					'auth_callback'     => static function () {
 						return current_user_can( 'edit_posts' );
 					},
@@ -78,6 +101,49 @@ class SRCS_Meta {
 			'side',
 			'high'
 		);
+
+		add_meta_box(
+			'srcs_cta',
+			__( 'CTA banner', 'stackrecipes-cs' ),
+			array( __CLASS__, 'render_cta_box' ),
+			SRCS_POST_TYPE,
+			'side',
+			'default'
+		);
+	}
+
+	/**
+	 * Render the CTA override box.
+	 *
+	 * @param WP_Post $post Post being edited.
+	 * @return void
+	 */
+	public static function render_cta_box( $post ) {
+		wp_nonce_field( 'srcs_save_meta', 'srcs_meta_nonce' );
+
+		echo '<p class="description">' . esc_html__( 'Overrides the banner shown at the foot of this teardown. Leave blank to use the site-wide copy.', 'stackrecipes-cs' ) . '</p>';
+
+		self::render_fields( $post, self::cta_fields() );
+	}
+
+	/**
+	 * Print one text input per field.
+	 *
+	 * @param WP_Post              $post   Post being edited.
+	 * @param array<string,string> $fields Field key => label.
+	 * @return void
+	 */
+	protected static function render_fields( $post, array $fields ) {
+		foreach ( $fields as $key => $label ) {
+			$value = get_post_meta( $post->ID, '_srcs_' . $key, true );
+			printf(
+				'<p><label for="%1$s" style="display:block;font-weight:600;margin-bottom:4px;">%2$s</label>'
+				. '<input type="text" class="widefat" id="%1$s" name="%1$s" value="%3$s" /></p>',
+				esc_attr( 'srcs_' . $key ),
+				esc_html( $label ),
+				esc_attr( (string) $value )
+			);
+		}
 	}
 
 	/**
@@ -91,16 +157,7 @@ class SRCS_Meta {
 
 		echo '<p class="description">' . esc_html__( 'Shown on the archive card and in the teardown header. Leave blank to hide a row.', 'stackrecipes-cs' ) . '</p>';
 
-		foreach ( self::fields() as $key => $label ) {
-			$value = get_post_meta( $post->ID, '_srcs_' . $key, true );
-			printf(
-				'<p><label for="%1$s" style="display:block;font-weight:600;margin-bottom:4px;">%2$s</label>'
-				. '<input type="text" class="widefat" id="%1$s" name="%1$s" value="%3$s" /></p>',
-				esc_attr( 'srcs_' . $key ),
-				esc_html( $label ),
-				esc_attr( (string) $value )
-			);
-		}
+		self::render_fields( $post, self::fields() );
 	}
 
 	/**
@@ -128,14 +185,18 @@ class SRCS_Meta {
 			return;
 		}
 
-		foreach ( array_keys( self::fields() ) as $key ) {
+		foreach ( array_keys( self::all_fields() ) as $key ) {
 			$field = 'srcs_' . $key;
 
 			if ( ! isset( $_POST[ $field ] ) ) {
 				continue;
 			}
 
-			$value = sanitize_text_field( wp_unslash( $_POST[ $field ] ) );
+			$raw = wp_unslash( $_POST[ $field ] );
+
+			$value = ( 'cta_url' === $key )
+				? esc_url_raw( $raw )
+				: sanitize_text_field( $raw );
 
 			if ( '' === $value ) {
 				delete_post_meta( $post_id, '_srcs_' . $key );

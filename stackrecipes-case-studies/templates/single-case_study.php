@@ -93,7 +93,12 @@ while ( have_posts() ) :
 
 		</article>
 
-		<?php echo SRCS_CTA::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the template part. ?>
+		<?php
+		// A shortcode in the body already placed the banner; don't stack a second one.
+		if ( ! has_shortcode( (string) get_post_field( 'post_content', get_the_ID() ), 'case_study_cta' ) ) {
+			echo SRCS_CTA::for_post(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in the template part.
+		}
+		?>
 
 		<?php
 		$srcs_related = new WP_Query(
