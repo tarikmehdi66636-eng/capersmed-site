@@ -19,18 +19,21 @@ files so it survives theme updates. Every template is still overridable from the
 | Single template — breadcrumb, at-a-glance panel, prose, related | `templates/single-case_study.php` |
 | `/retail/` CTA banner + `[case_study_cta]` shortcode | `includes/class-cta.php`, `templates/parts/cta-retail.php` |
 | Section stylesheet (loaded only on this section) | `assets/css/case-studies.css` |
-| First teardown, published on activation | `content/…-lightspeed-migration.html` |
+| Shipped teardowns, published on activation | `content/*.html` |
 
-The first teardown publishes at:
+### Published teardowns
 
-```
-/case-studies/independent-wine-merchant-lightspeed-migration/
-```
-
-**Case Breakdown: Migrating a Specialty Wine & Spirits Merchant Off Lightspeed** — the baseline
+**`/case-studies/independent-wine-merchant-lightspeed-migration/`**
+*Case Breakdown: Migrating a Specialty Wine & Spirits Merchant Off Lightspeed* — the baseline
 (2 registers, 1,800 SKUs, £168/month), the hardware audit (keep the Star TSP143 printers, replace
 the rented readers with Stripe WisePOS E), UK VAT split across one receipt, the 48-hour cutover,
 and the three-year P&L table.
+
+**`/case-studies/apparel-boutique-shopify-pos-pro-migration/`**
+*Case Breakdown: Migrating an Apparel Boutique off Shopify POS Pro to Single-Database
+Omnichannel* — the stacked subscription baseline ($105 + $89 + $65 = $259/month), why webhook
+sync double-sold the same dress, the variant matrix (3,400 SKUs across size × colour), a cutover
+built around a live storefront rather than a closed shop, and the three-year comparison.
 
 ---
 
@@ -41,8 +44,20 @@ and the three-year P&L table.
 3. Visit **Settings → Permalinks** once if `/case-studies/` 404s. (Activation flushes rewrites; this
    is only needed when the files are deployed by copy without an activation cycle.)
 
-Activation publishes the first teardown if no post already exists at that slug. It never overwrites
-an existing post, so re-activating is safe.
+Activation publishes any shipped teardown that has no post at its slug. It never overwrites an
+existing post, so re-activating is safe.
+
+### Publishing teardowns added after activation
+
+The activation hook only fires on activation, so a plugin **updated in place** never publishes
+teardowns added since. After deploying an update that ships a new teardown:
+
+```bash
+sudo -u www-data HOME=/tmp wp stackrecipes seed
+```
+
+It publishes only what is missing and reports what it skipped. Deactivating and reactivating the
+plugin does the same thing from the admin screens.
 
 ### Serving the section from `/blueprints/` instead
 
@@ -93,6 +108,9 @@ sudo -u www-data HOME=/tmp wp plugin activate stackrecipes-case-studies
 sudo -u www-data HOME=/tmp wp rewrite flush
 
 sudo systemctl reload php8.3-fpm   # purge OPcache for the web SAPI
+
+# On an update that ships a new teardown, activation does not re-run:
+sudo -u www-data HOME=/tmp wp stackrecipes seed
 ```
 
 Activation already flushes rewrites, so `wp rewrite flush` is belt and braces

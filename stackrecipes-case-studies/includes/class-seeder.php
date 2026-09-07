@@ -27,10 +27,27 @@ class SRCS_Seeder {
 				'topics'  => array( 'Point of Sale', 'Retail', 'UK VAT' ),
 				'meta'    => array(
 					'vertical'  => 'Independent wine & spirits retail',
+					'scale'     => '2 registers · 1,800 SKUs',
 					'migrating' => 'Lightspeed Retail (X-Series), 2 registers',
 					'stack'     => 'Self-hosted POS + Stripe Terminal',
 					'baseline'  => '£168/month recurring SaaS',
 					'outcome'   => '≈ £5,374 retained over 3 years',
+					'timeline'  => '48-hour cutover',
+				),
+			),
+			array(
+				'slug'    => 'apparel-boutique-shopify-pos-pro-migration',
+				'title'   => 'Case Breakdown: Migrating an Apparel Boutique off Shopify POS Pro to Single-Database Omnichannel',
+				'file'    => 'apparel-boutique-shopify-pos-pro-migration.html',
+				'excerpt' => 'How an independent Austin apparel boutique cut $3,108/year of stacked Shopify, POS Pro and third-party app subscriptions, and stopped overselling variants by replacing webhook sync with single-database inventory.',
+				'topics'  => array( 'Point of Sale', 'Retail', 'Omnichannel' ),
+				'meta'    => array(
+					'vertical'  => "Women's apparel & accessories · Austin, TX",
+					'scale'     => '2 registers + web storefront · 3,400 variant SKUs',
+					'migrating' => 'Shopify + Shopify POS Pro',
+					'stack'     => 'Single-database omnichannel',
+					'baseline'  => '$259/month across three subscriptions',
+					'outcome'   => '$8,493 retained over 3 years',
 					'timeline'  => '48-hour cutover',
 				),
 			),
@@ -96,5 +113,37 @@ class SRCS_Seeder {
 		}
 
 		return $created;
+	}
+
+	/**
+	 * `wp stackrecipes seed`
+	 *
+	 * The activation hook only fires on activation, so a plugin updated in
+	 * place never publishes teardowns added since. This publishes the missing
+	 * ones without touching what is already there.
+	 *
+	 * @return void
+	 */
+	public static function cli_seed() {
+		$total   = count( self::entries() );
+		$created = self::seed();
+		$skipped = $total - count( $created );
+
+		foreach ( $created as $post_id ) {
+			WP_CLI::log( 'Published: ' . get_permalink( $post_id ) );
+		}
+
+		if ( ! $created ) {
+			WP_CLI::success( sprintf( 'Nothing to publish; all %d teardowns already exist.', $total ) );
+			return;
+		}
+
+		WP_CLI::success(
+			sprintf(
+				'Published %d teardown(s), skipped %d already present.',
+				count( $created ),
+				$skipped
+			)
+		);
 	}
 }

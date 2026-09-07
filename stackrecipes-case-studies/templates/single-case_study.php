@@ -52,6 +52,7 @@ while ( have_posts() ) :
 			<?php
 			$srcs_glance = array_filter(
 				array(
+					__( 'Scale', 'stackrecipes-cs' )          => srcs_meta( 'scale' ),
 					__( 'Migrating from', 'stackrecipes-cs' ) => srcs_meta( 'migrating' ),
 					__( 'Migrating to', 'stackrecipes-cs' )   => srcs_meta( 'stack' ),
 					__( 'Baseline cost', 'stackrecipes-cs' )  => srcs_meta( 'baseline' ),

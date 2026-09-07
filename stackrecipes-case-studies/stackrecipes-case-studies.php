@@ -62,3 +62,10 @@ register_activation_hook(
 );
 
 register_deactivation_hook( __FILE__, 'flush_rewrite_rules' );
+
+/**
+ * `wp stackrecipes seed` — publish shipped teardowns added since activation.
+ */
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	WP_CLI::add_command( 'stackrecipes seed', array( 'SRCS_Seeder', 'cli_seed' ) );
+}

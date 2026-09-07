@@ -20,6 +20,7 @@ class SRCS_Meta {
 	public static function fields() {
 		return array(
 			'vertical'  => __( 'Vertical', 'stackrecipes-cs' ),
+			'scale'     => __( 'Scale', 'stackrecipes-cs' ),
 			'migrating' => __( 'Migrating from', 'stackrecipes-cs' ),
 			'stack'     => __( 'Migrating to', 'stackrecipes-cs' ),
 			'baseline'  => __( 'Baseline cost', 'stackrecipes-cs' ),

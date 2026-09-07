@@ -34,6 +34,10 @@ cd "$WP"
 sudo -u www-data wp plugin activate "$PLUGIN"
 sudo -u www-data wp rewrite flush
 
+# Activation does not re-run on an in-place update, so publish any teardown
+# shipped since. Idempotent: it skips slugs that already exist.
+sudo -u www-data wp stackrecipes seed
+
 # 4. Reload PHP-FPM to purge OPcache.
 systemctl reload "$FPM"
 
