@@ -54,6 +54,52 @@ define( 'SRCS_SLUG', 'blueprints' );
 
 then re-save permalinks. The archive, the single URLs and the taxonomy all follow.
 
+### Deploying to a live server
+
+```bash
+# Copy in. On a re-deploy prefer rsync, so files removed from the plugin are
+# removed from the server too — cp -r merges and leaves stale files behind.
+sudo rsync -a --delete /path/to/capersmed-site/stackrecipes-case-studies/ \
+  /var/www/stackrecipes.com/wp-content/plugins/stackrecipes-case-studies/
+
+sudo chown -R www-data:www-data \
+  /var/www/stackrecipes.com/wp-content/plugins/stackrecipes-case-studies
+
+cd /var/www/stackrecipes.com
+
+# HOME is set because WP-CLI as www-data otherwise warns about ~/.wp-cli/cache.
+sudo -u www-data HOME=/tmp wp plugin activate stackrecipes-case-studies
+sudo -u www-data HOME=/tmp wp rewrite flush
+
+sudo systemctl reload php8.3-fpm   # purge OPcache for the web SAPI
+```
+
+Activation already flushes rewrites, so `wp rewrite flush` is belt and braces
+rather than required.
+
+**Check the permalink structure first.** On plain permalinks (`?p=123`) the
+section 404s no matter how often you flush:
+
+```bash
+sudo -u www-data HOME=/tmp wp rewrite structure   # must not be empty
+```
+
+Then verify the deploy landed:
+
+```bash
+# The teardown exists and is published
+sudo -u www-data HOME=/tmp wp post list --post_type=case_study \
+  --fields=ID,post_status,post_name
+
+# The permalink resolves
+curl -sI https://stackrecipes.com/case-studies/ | head -1
+curl -sI https://stackrecipes.com/case-studies/independent-wine-merchant-lightspeed-migration/ | head -1
+```
+
+Both should return `200`. If the archive 200s but the teardown 404s, the post
+did not seed — re-run activation, or create it in the editor and paste
+`content/independent-wine-merchant-lightspeed-migration.html` into a code block.
+
 ---
 
 ## Theming

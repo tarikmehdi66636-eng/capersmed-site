@@ -64,14 +64,18 @@ class SRCS_Seeder {
 				continue;
 			}
 
+			// wp_insert_post() expects slashed data and unslashes it internally.
+			// Without this, a backslash in a teardown body is silently eaten.
 			$post_id = wp_insert_post(
-				array(
-					'post_type'    => SRCS_POST_TYPE,
-					'post_status'  => 'publish',
-					'post_title'   => $entry['title'],
-					'post_name'    => $entry['slug'],
-					'post_excerpt' => $entry['excerpt'],
-					'post_content' => $content,
+				wp_slash(
+					array(
+						'post_type'    => SRCS_POST_TYPE,
+						'post_status'  => 'publish',
+						'post_title'   => $entry['title'],
+						'post_name'    => $entry['slug'],
+						'post_excerpt' => $entry['excerpt'],
+						'post_content' => $content,
+					)
 				),
 				true
 			);
