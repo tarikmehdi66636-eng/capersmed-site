@@ -36,6 +36,13 @@ sync double-sold the same dress, the move to Odoo 18 Community on a private VPS,
 variant SKUs (42 duplicate barcodes included), the hardware audit that kept 75% of the counter,
 the Sunday-to-Tuesday cutover, and the three-year comparison ($9,324 vs $1,629).
 
+**`/case-studies/melbourne-coffee-roaster-square-migration/`**
+*Case Breakdown: Migrating a High-Volume Melbourne Coffee Roaster off Square* — per-counter Square
+subscriptions at $2,088 AUD/year, mixed Australian GST (10% espresso against GST-free retail beans
+on one receipt) fixed at SKU level, the Epson/APG counter hardware that survived against the
+firmware-locked Square Stands, LAN-side offline mode for the morning rush, and the three-year
+comparison in AUD ($6,264 vs $1,998).
+
 ---
 
 ## Install

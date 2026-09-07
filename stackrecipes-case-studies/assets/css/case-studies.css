@@ -340,7 +340,11 @@
 	padding: 1rem 1.25rem;
 }
 
-.srcs-note strong {
+/*
+ * Only the note's leading label becomes its heading line. Scoped to the first
+ * child so emphasis inside the body text does not break onto its own line.
+ */
+.srcs-note > strong:first-child {
 	display: block;
 	margin-bottom: 0.25rem;
 }

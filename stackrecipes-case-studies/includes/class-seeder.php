@@ -55,6 +55,26 @@ class SRCS_Seeder {
 					'cta_url'     => '/retail/',
 				),
 			),
+			array(
+				'slug'    => 'melbourne-coffee-roaster-square-migration',
+				'title'   => 'Case Breakdown: Migrating a High-Volume Melbourne Coffee Roaster off Square',
+				'file'    => 'melbourne-coffee-roaster-square-migration.html',
+				'excerpt' => 'How an independent Melbourne roaster and cafe cut $2,088 AUD/year of Square for Retail subscriptions, stopped mis-tagging GST-free beans against 10% espresso on the same receipt, kept its Epson printers and cash drawers, and gained a counter that keeps trading when the fibre drops.',
+				'topics'  => array( 'Point of Sale', 'Retail', 'Australian GST', 'Hospitality' ),
+				'meta'    => array(
+					'vertical'    => 'Specialty coffee roaster & espresso bar · Brunswick, Melbourne',
+					'scale'       => '2 registers · 420 SKUs · 350+ transactions before 11:30 AM',
+					'migrating'   => 'Square for Retail Plus',
+					'stack'       => 'Odoo 18 Community on a private VPS',
+					'baseline'    => '$2,088 AUD/year in recurring software',
+					'outcome'     => '$4,266 AUD retained over 3 years',
+					'timeline'    => 'Sunday close to Tuesday open',
+					'cta_heading' => 'Running a cafe or retail roastery on Square?',
+					'cta_body'    => 'See how much software rent you can eliminate while keeping your commercial network printers and cash drawers.',
+					'cta_label'   => 'Explore turnkey counter setup ($399 USD)',
+					'cta_url'     => '/retail/',
+				),
+			),
 		);
 	}
 

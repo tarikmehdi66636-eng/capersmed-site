@@ -1,0 +1,236 @@
+<p class="srcs-lede">A specialty coffee roaster in Brunswick, Melbourne: a bustling morning espresso bar bolted to a whole-bean grocery section, 420 SKUs, two counter registers, and $2,088 AUD a year in software rent for the right to operate them. This is the teardown of moving off Square for Retail — the subscription stack, the mixed GST problem that was quietly corrupting their BAS, which counter hardware survived the move, how the counter keeps trading when the fibre drops, and the three-year comparison.</p>
+
+<p class="srcs-note"><strong>How to read this</strong>Figures are the roaster's own, in Australian dollars, with the one-time fee converted at an indicative rate. Card processing fees are excluded from both sides, because those are set by the merchant's own agreement and not by this decision. GST treatment is summarised here for engineering purposes — take the tax mapping to your own accountant before you rely on it.</p>
+
+<h2>The Baseline: The High-Volume, Low-Ticket Square Squeeze</h2>
+
+<p>Operating out of a converted warehouse in Brunswick, this specialty roaster pairs a bustling morning retail espresso bar with a wholesale and retail whole-bean grocery section.</p>
+
+<p>Between 7:00 AM and 11:30 AM the counter processes upwards of 350 transactions. With an average morning ticket of $6.20 AUD — a flat white and a pastry — transaction speed and network reliability are not features. They are the business.</p>
+
+<p>For four years they ran on <strong>Square for Retail</strong>:</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Recurring software spend before migration" tabindex="0">
+	<table class="srcs-table">
+		<caption>Recurring software only, in AUD. Card processing fees and hardware rental are separate and are not in these figures.</caption>
+		<thead>
+			<tr>
+				<th scope="col">Subscription</th>
+				<th scope="col">Monthly</th>
+				<th scope="col">Annual</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">Square for Retail Plus — primary register</th>
+				<td>$89</td>
+				<td>$1,068</td>
+			</tr>
+			<tr>
+				<th scope="row">Second counter terminal</th>
+				<td>$45</td>
+				<td>$540</td>
+			</tr>
+			<tr>
+				<th scope="row">Team Management &amp; Shifts <small>6 casual baristas, timecard exports</small></th>
+				<td>$40</td>
+				<td>$480</td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">Total recurring software spend</th>
+				<td class="srcs-neg">$134</td>
+				<td class="srcs-neg">$2,088</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<p>On top of the subscription sat the rented Square Stand enclosures, with their readers embedded and firmware-locked to Square's backend. And because the roaster was on Square's flat processing rate, hundreds of micro-transactions a morning were being priced the same way as a $200 wholesale order, rather than routing over low-cost domestic EFTPOS.</p>
+
+<p>The second line is the one that stings at this scale. A second register is not a second business — it is the same shop, on the same morning, serving the same queue faster. Per-counter pricing charges for the queue.</p>
+
+<h2>The Australian Tax Challenge: Mixed GST on a Single Receipt</h2>
+
+<p>Australian GST draws a hard line through this shop's product mix:</p>
+
+<ul>
+	<li><strong>Prepared hot beverages and pastries for immediate consumption</strong> — standard <strong>10% GST</strong>.</li>
+	<li><strong>Packaged roasted whole-bean and ground coffee sold for home preparation</strong> — basic food for human consumption, and <strong>GST-free (0%)</strong>.</li>
+	<li><strong>Brewing equipment</strong> — filters, grinders, kettles — not food, so <strong>10% GST</strong>.</li>
+</ul>
+
+<p>The same barista, on the same transaction, can cross that line twice: a flat white to drink now, and a $28 bag of single-origin to take home. Under the previous setup, staff regularly tapped the wrong category shortcut during the morning rush and applied 10% GST to the beans — producing discrepancies that surfaced a quarter later on the Business Activity Statement, long after anybody could remember the transaction.</p>
+
+<h3>The Odoo 18 fiscal configuration</h3>
+
+<p>The product template database was configured so tax treatment is fixed at SKU level and the cashier is never asked:</p>
+
+<ol>
+	<li><strong>Automatic tax mapping.</strong> Scanning a bag of beans sets the line to <em>GST-free (0%)</em>. Scanning a flat white or a ceramic dripper applies <em>GST 10%</em>. There is no category shortcut to mistap, because the barcode carries the answer.</li>
+	<li><strong>Tax-invoice-compliant receipts by default.</strong> The ESC/POS print payload was customised to print the business name, the Australian Business Number (ABN), itemised taxable and GST-free subtotals, and total GST charged — on every receipt, not on request.</li>
+</ol>
+
+<p class="srcs-note"><strong>Why print it on every receipt</strong>The ATO rule is narrower than it is usually described: for a taxable sale of <strong>$82.50 or more including GST</strong>, you must give the buyer a tax invoice <strong>if they ask for one</strong>, within 28 days of the request. Nothing obliges a café to print one for a $6.20 flat white. Printing a compliant invoice on every receipt is an engineering decision, not a legal one — it costs nothing per transaction and it means no one is ever reissuing a document for a wholesale customer who asks three weeks later.</p>
+
+<h2>Hardware Audit: What Survived vs. The Locked Hardware Trap</h2>
+
+<p>The owner had invested in good peripherals and hoped to keep them. As with most Square migrations, the split between open standards and proprietary locks was stark:</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Hardware audit" tabindex="0">
+	<table class="srcs-table srcs-table--text">
+		<thead>
+			<tr>
+				<th scope="col">Existing hardware</th>
+				<th scope="col">Status</th>
+				<th scope="col">Operational action</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">Epson TM-T88VI receipt printers (&times;2)</th>
+				<td><strong>Kept</strong></td>
+				<td>Connected via Ethernet to the store router. Assigned static IPs (<code>192.168.1.150</code> / <code>.151</code>) for direct raw socket printing on port 9100.</td>
+			</tr>
+			<tr>
+				<th scope="row">Zebra DS2208 barcode scanners</th>
+				<td><strong>Kept</strong></td>
+				<td>Standard USB HID. Plugged straight into the counter terminals. Instant recognition, no drivers.</td>
+			</tr>
+			<tr>
+				<th scope="row">APG Vasario cash drawers (&times;2)</th>
+				<td><strong>Kept</strong></td>
+				<td>Connected to the Epson printers' RJ12 kick ports via 24V solenoid cables.</td>
+			</tr>
+			<tr>
+				<th scope="row">iPad Air (5th gen) tablets</th>
+				<td><strong>Kept</strong></td>
+				<td>Retained as secondary floor ordering tablets through the browser interface.</td>
+			</tr>
+			<tr>
+				<th scope="row">Square Stand enclosures &amp; readers</th>
+				<td class="srcs-neg"><strong>Replaced</strong></td>
+				<td>Firmware-locked to Square. The hardware cannot talk to open POS software or third-party APIs, and is retired with the platform.</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<p>In their place:</p>
+
+<ul>
+	<li>Two commercial 15.6&Prime; touchscreen Windows terminals running Microsoft Edge in kiosk mode.</li>
+	<li>Two <strong>BBPOS WisePOS E</strong> countertop card terminals on local Wi-Fi, connected directly to the roaster's own Stripe account.</li>
+</ul>
+
+<p>The pattern repeats across every one of these teardowns and it is worth stating plainly: printers, scanners and drawers speak open protocols and outlive the software driving them. A platform-locked card reader is the one piece of counter hardware guaranteed to be worthless the day you leave.</p>
+
+<h2>Handling the Morning Rush: Offline Mode &amp; LAN Routing</h2>
+
+<p>In a high-turnover café, an internet dropout at 8:15 AM on a Friday is not an inconvenience. It is a queue out of the door and a decision about whether to give the coffee away.</p>
+
+<p>The network topology was separated into two layers:</p>
+
+<ul>
+	<li><strong>Local area network.</strong> The POS terminals, the Epson TM-T88VI printers and the WisePOS E terminals all talk to each other over a dedicated local router subnet.</li>
+	<li><strong>Wide area network.</strong> The uplink to the commercial fibre provider.</li>
+</ul>
+
+<p>Because Odoo 18 POS caches the whole product catalogue, price rules and customer database locally in the browser's IndexedDB, the counter <strong>never stops scanning or ringing up orders when the fibre drops</strong>. Baristas keep taking cash and keep firing print jobs to the receipt printer across the local router. When the connection restores, local transaction logs background-sync to PostgreSQL without cashier intervention.</p>
+
+<p class="srcs-note"><strong>What offline mode does not cover</strong>Cash and printing survive a WAN outage because they never left the LAN. Card payments do not: the WisePOS E authorises against Stripe, which is on the other side of the fibre. Offline mode keeps the queue moving and the till accurate — it does not make cards work. Every café running this setup needs the same one-line staff rule: fibre down means cash, and it means saying so at the front of the queue rather than at the terminal.</p>
+
+<h2>The Cutover Timeline: Zero Interruption to Saturday Trade</h2>
+
+<p>Bar operations shut down at 3:00 PM on Sunday. The cutover ran from there to Tuesday open:</p>
+
+<ol class="srcs-timeline srcs-wide">
+	<li>
+		<span class="srcs-timeline__when">Sunday 4:00 PM — Catalogue clean &amp; transform</span>
+		420 active items exported from Square. Inconsistent grind variation attributes cleaned, missing EAN barcodes assigned to retail bags, ATO tax tags validated against the product list line by line.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Sunday 7:00 PM — Server deployment</span>
+		Odoo 18 Community spun up on a private VPS. Product master data, cashier PIN profiles and thermal printer network sockets bound.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Monday 9:00 AM — Terminal calibration</span>
+		Stripe Terminal API keys verified, WisePOS E terminals paired over local Wi-Fi, and cash drawer kick codes (<code>\x1B\x70\x00\x19\xFA</code>) validated on the Epson printers.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Monday 1:00 PM — Staff dry run (45 minutes)</span>
+		The team tested high-speed modifier taps (oat milk, extra shot, decaf), retail bean scanning, and split payments. Mixed GST baskets were rung deliberately and the printed receipts checked against the expected tax split.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Tuesday 6:30 AM — First shot pulled</span>
+		Trade opened cleanly. 382 transactions processed before midday with zero checkout stalls.
+	</li>
+</ol>
+
+<h2>3-Year Audited Financials: Square vs. Private Server Ownership</h2>
+
+<p>All figures in <strong>Australian dollars</strong>, with the one-time setup fee converted at an indicative rate of $1.00 USD &asymp; $1.50 AUD ($399 USD &asymp; $600 AUD).</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Three-year cost comparison" tabindex="0">
+	<table class="srcs-table">
+		<caption>36-month comparison in AUD. Card processing fees are excluded from both sides. With Stripe Terminal, domestic card transactions settle directly to the merchant's Australian commercial bank account.</caption>
+		<thead>
+			<tr>
+				<th scope="col">Expense item</th>
+				<th scope="col">Square ecosystem (3 years)</th>
+				<th scope="col">StackRecipes turnkey setup (3 years)</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">POS software subscriptions</th>
+				<td class="srcs-neg">$4,824 <small>($134/mo &times; 36)</small></td>
+				<td><strong>$0</strong> <small>(open-source Odoo Community)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Staff &amp; shift add-on fees</th>
+				<td class="srcs-neg">$1,440 <small>($40/mo &times; 36)</small></td>
+				<td><strong>$0</strong> <small>(native employee &amp; PIN management)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Private server hosting</th>
+				<td><small>Included in SaaS markup</small></td>
+				<td>$648 <small>(~$12 USD/mo paid direct to host)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Turnkey implementation fee</th>
+				<td>$0 <small>(self-setup)</small></td>
+				<td>$600 <small>(one-time, $399 USD)</small></td>
+			</tr>
+			<tr>
+				<th scope="row">Card reader replacement</th>
+				<td>$0 <small>(Square hardware retires with the platform)</small></td>
+				<td>$750 <small>(2 &times; Stripe WisePOS E @ ~$375 AUD)</small></td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">Total outlay</th>
+				<td class="srcs-neg">$6,264</td>
+				<td class="srcs-pos">$1,998</td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">3-year retained capital</th>
+				<td>&mdash;</td>
+				<td class="srcs-pos">$4,266 kept by the merchant</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<p>$1,350 of the right-hand column is one-time, so the recurring comparison after year one is $2,088 against $216. The subscription column contains no growth, either: a third register, or a second site, moves only one of these two numbers.</p>
+
+<h2>The Verdict</h2>
+
+<p>By walking away from proprietary terminal locks and per-counter software subscriptions, this Melbourne roaster <strong>reclaimed over $1,400 AUD per year</strong> in operating margin, eliminated GST tagging errors on their quarterly BAS, and kept complete ownership of their transaction data.</p>
+
+<h2>Where this blueprint does not apply</h2>
+
+<ul>
+	<li><strong>If card payments cannot stop, ever.</strong> Offline mode keeps cash trading through a WAN outage, not cards. A site that genuinely cannot take cash needs a redundant uplink — a 4G failover on the router — costed in before the comparison above means anything.</li>
+	<li><strong>If nobody owns the server.</strong> A private VPS is a machine somebody has to patch, back up and restore. If that person does not exist and is not hired, the subscription is buying something real.</li>
+	<li><strong>If the GST mapping is genuinely ambiguous.</strong> Beans and brew gear sit either side of a clear line. Hampers, catering, and anything sold both to eat in and take away do not, and those need an accountant's written position rather than a tax tag chosen during a migration.</li>
+	<li><strong>If you are about to open a second site.</strong> Multi-location changes the shape of the problem, and a month before opening is the worst available timing.</li>
+</ul>
