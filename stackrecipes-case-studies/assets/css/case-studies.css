@@ -1,0 +1,557 @@
+/*
+ * StackRecipes — Case Studies / Architecture Teardowns
+ *
+ * Typography is deliberately conservative: it inherits the theme's font stack
+ * and only sets rhythm, measure and contrast. Retune the section by overriding
+ * the tokens below in the theme stylesheet — nothing else needs touching.
+ */
+
+.srcs {
+	--srcs-ink: #14181d;
+	--srcs-muted: #5b6672;
+	--srcs-line: #e3e7ec;
+	--srcs-line-strong: #c9d1da;
+	--srcs-bg-soft: #f7f8fa;
+	--srcs-accent: #0f4c81;
+	--srcs-accent-ink: #ffffff;
+	--srcs-positive: #1c6b4a;
+	--srcs-negative: #8a3324;
+
+	--srcs-measure: 42rem;
+	--srcs-wide: 68rem;
+	--srcs-radius: 10px;
+	--srcs-gap: clamp(1.5rem, 4vw, 3rem);
+
+	color: var(--srcs-ink);
+	font-size: 1.0625rem;
+	line-height: 1.65;
+	margin: 0 auto;
+	max-width: var(--srcs-wide);
+	padding: clamp(2rem, 6vw, 4.5rem) clamp(1.15rem, 5vw, 2rem) 5rem;
+}
+
+.srcs :where(h1, h2, h3, h4) {
+	color: var(--srcs-ink);
+	line-height: 1.22;
+	text-wrap: balance;
+}
+
+.srcs a {
+	color: var(--srcs-accent);
+	text-underline-offset: 0.16em;
+}
+
+.srcs-eyebrow {
+	color: var(--srcs-muted);
+	font-size: 0.775rem;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	margin: 0 0 0.6rem;
+	text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------- Archive ---- */
+
+.srcs-archive__intro {
+	border-bottom: 1px solid var(--srcs-line);
+	margin-bottom: var(--srcs-gap);
+	max-width: var(--srcs-measure);
+	padding-bottom: var(--srcs-gap);
+}
+
+.srcs-archive__title {
+	font-size: clamp(2rem, 5vw, 2.9rem);
+	margin: 0 0 0.75rem;
+}
+
+.srcs-archive__standfirst {
+	color: var(--srcs-muted);
+	font-size: 1.125rem;
+	margin: 0;
+}
+
+.srcs-topics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 1.5rem;
+}
+
+.srcs-topics__link {
+	border: 1px solid var(--srcs-line-strong);
+	border-radius: 999px;
+	color: var(--srcs-muted);
+	font-size: 0.875rem;
+	padding: 0.3rem 0.85rem;
+	text-decoration: none;
+}
+
+.srcs-topics__link:hover,
+.srcs-topics__link:focus-visible {
+	border-color: var(--srcs-accent);
+	color: var(--srcs-accent);
+}
+
+.srcs-topics__link.is-current {
+	background: var(--srcs-accent);
+	border-color: var(--srcs-accent);
+	color: var(--srcs-accent-ink);
+}
+
+.srcs-grid {
+	display: grid;
+	gap: 1.5rem;
+	grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+}
+
+.srcs-card {
+	background: #fff;
+	border: 1px solid var(--srcs-line);
+	border-radius: var(--srcs-radius);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.srcs-card__media img {
+	aspect-ratio: 16 / 9;
+	display: block;
+	height: auto;
+	object-fit: cover;
+	width: 100%;
+}
+
+.srcs-card__body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	padding: 1.4rem;
+}
+
+.srcs-card__title {
+	font-size: 1.2rem;
+	margin: 0 0 0.6rem;
+}
+
+.srcs .srcs-card__title a {
+	color: var(--srcs-ink);
+	text-decoration: none;
+}
+
+.srcs-card__title a:hover,
+.srcs-card__title a:focus-visible {
+	text-decoration: underline;
+}
+
+.srcs-card__excerpt {
+	color: var(--srcs-muted);
+	font-size: 0.95rem;
+	margin: 0 0 1.1rem;
+}
+
+.srcs-card__stats {
+	border-top: 1px solid var(--srcs-line);
+	display: grid;
+	gap: 0.55rem;
+	margin: auto 0 0;
+	padding-top: 1rem;
+}
+
+.srcs-card__stat {
+	display: flex;
+	font-size: 0.875rem;
+	gap: 0.75rem;
+	justify-content: space-between;
+}
+
+.srcs-card__stat dt {
+	color: var(--srcs-muted);
+	flex: none;
+}
+
+.srcs-card__stat dd {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	margin: 0;
+	text-align: right;
+}
+
+.srcs-card__more {
+	margin: 1.1rem 0 0;
+}
+
+.srcs-card__more a {
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.srcs-pagination {
+	margin-top: var(--srcs-gap);
+}
+
+.srcs-empty {
+	color: var(--srcs-muted);
+}
+
+/* ----------------------------------------------------------- Single ---- */
+
+.srcs-breadcrumb {
+	color: var(--srcs-muted);
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 0.875rem;
+	gap: 0.5rem;
+	margin-bottom: 1.75rem;
+}
+
+.srcs-teardown__header {
+	max-width: var(--srcs-measure);
+}
+
+.srcs-teardown__title {
+	font-size: clamp(1.9rem, 4.6vw, 2.75rem);
+	margin: 0 0 1rem;
+}
+
+.srcs-teardown__standfirst {
+	color: var(--srcs-muted);
+	font-size: 1.2rem;
+	line-height: 1.5;
+	margin: 0 0 1rem;
+}
+
+.srcs-teardown__byline {
+	color: var(--srcs-muted);
+	display: flex;
+	font-size: 0.875rem;
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.srcs-glance {
+	background: var(--srcs-bg-soft);
+	border: 1px solid var(--srcs-line);
+	border-radius: var(--srcs-radius);
+	margin: 2.25rem 0;
+	padding: 1.4rem 1.6rem;
+}
+
+.srcs-glance__title {
+	font-size: 0.775rem;
+	letter-spacing: 0.09em;
+	margin: 0 0 0.9rem;
+	text-transform: uppercase;
+}
+
+.srcs-glance__list {
+	display: grid;
+	gap: 0.7rem;
+	margin: 0;
+}
+
+.srcs-glance__row {
+	border-bottom: 1px solid var(--srcs-line);
+	display: grid;
+	gap: 0.15rem 1.5rem;
+	padding-bottom: 0.7rem;
+}
+
+.srcs-glance__row:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.srcs-glance__row dt {
+	color: var(--srcs-muted);
+	font-size: 0.85rem;
+}
+
+.srcs-glance__row dd {
+	font-weight: 600;
+	margin: 0;
+}
+
+@media (min-width: 40rem) {
+	.srcs-glance__row {
+		align-items: baseline;
+		grid-template-columns: 12rem 1fr;
+	}
+}
+
+/* ------------------------------------------------------------ Prose ---- */
+
+/*
+ * Two-column grid so tables and the cutover timeline can break out of the
+ * reading measure while everything stays flush left with the header.
+ */
+.srcs-prose {
+	display: grid;
+	grid-template-columns: min(var(--srcs-measure), 100%) 1fr;
+}
+
+.srcs-prose > * {
+	grid-column: 1;
+	margin: 0 0 1.15rem;
+	min-width: 0;
+}
+
+.srcs-prose > .srcs-wide {
+	grid-column: 1 / -1;
+}
+
+.srcs-prose h2 {
+	border-top: 1px solid var(--srcs-line);
+	font-size: clamp(1.4rem, 3vw, 1.75rem);
+	margin: 1.9rem 0 1rem;
+	padding-top: 2rem;
+}
+
+.srcs-prose h3 {
+	font-size: 1.15rem;
+	margin: 2rem 0 0.75rem;
+}
+
+.srcs-prose :where(ul, ol) {
+	padding-left: 1.35rem;
+}
+
+.srcs-prose li + li {
+	margin-top: 0.4rem;
+}
+
+.srcs-prose code {
+	background: var(--srcs-bg-soft);
+	border: 1px solid var(--srcs-line);
+	border-radius: 4px;
+	font-size: 0.9em;
+	padding: 0.1em 0.35em;
+}
+
+.srcs-lede {
+	font-size: 1.15rem;
+}
+
+/* Callout for caveats and "read this before you copy us" notes. */
+.srcs-note {
+	background: var(--srcs-bg-soft);
+	border-left: 3px solid var(--srcs-accent);
+	border-radius: 0 var(--srcs-radius) var(--srcs-radius) 0;
+	font-size: 0.975rem;
+	padding: 1rem 1.25rem;
+}
+
+.srcs-note strong {
+	display: block;
+	margin-bottom: 0.25rem;
+}
+
+/* Scrollable regions carry tabindex="0" so keyboard users can reach them. */
+.srcs-table-wrap {
+	-webkit-overflow-scrolling: touch;
+	border: 1px solid var(--srcs-line);
+	border-radius: var(--srcs-radius);
+	overflow-x: auto;
+}
+
+.srcs-table-wrap:focus-visible {
+	outline: 2px solid var(--srcs-accent);
+	outline-offset: 2px;
+}
+
+.srcs-table {
+	border-collapse: collapse;
+	font-size: 0.95rem;
+	min-width: 34rem;
+	width: 100%;
+}
+
+.srcs-table caption {
+	caption-side: bottom;
+	color: var(--srcs-muted);
+	font-size: 0.85rem;
+	padding: 0.85rem 1rem;
+	text-align: left;
+}
+
+.srcs-table :where(th, td) {
+	border-bottom: 1px solid var(--srcs-line);
+	padding: 0.7rem 1rem;
+	text-align: left;
+	vertical-align: top;
+}
+
+.srcs-table thead th {
+	background: var(--srcs-bg-soft);
+	font-size: 0.8rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.srcs-table :where(td, th) + :where(td, th) {
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.srcs-table tbody tr:last-child :where(th, td) {
+	border-bottom: 0;
+}
+
+.srcs-table .is-total :where(th, td) {
+	background: var(--srcs-bg-soft);
+	border-top: 2px solid var(--srcs-line-strong);
+	font-weight: 700;
+}
+
+.srcs-pos {
+	color: var(--srcs-positive);
+}
+
+.srcs-neg {
+	color: var(--srcs-negative);
+}
+
+/* Cutover timeline. */
+.srcs-timeline {
+	border-left: 2px solid var(--srcs-line-strong);
+	list-style: none;
+	margin: 1.5rem 0;
+	padding: 0 0 0 1.5rem;
+}
+
+.srcs-timeline > li {
+	padding-bottom: 1.5rem;
+	position: relative;
+}
+
+.srcs-timeline > li::before {
+	background: var(--srcs-accent);
+	border-radius: 50%;
+	content: "";
+	height: 9px;
+	left: calc(-1.5rem - 5.5px);
+	position: absolute;
+	top: 0.55rem;
+	width: 9px;
+}
+
+.srcs-timeline > li:last-child {
+	padding-bottom: 0;
+}
+
+.srcs-timeline__when {
+	display: block;
+	font-size: 0.8rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.srcs-teardown__topics {
+	border-top: 1px solid var(--srcs-line);
+	color: var(--srcs-muted);
+	font-size: 0.9rem;
+	margin-top: 2.5rem;
+	padding-top: 1.25rem;
+}
+
+/* -------------------------------------------------------------- CTA ---- */
+
+.srcs-cta {
+	align-items: center;
+	background: var(--srcs-bg-soft);
+	border: 1px solid var(--srcs-line-strong);
+	border-radius: var(--srcs-radius);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+	justify-content: space-between;
+	margin: 3rem 0 0;
+	padding: clamp(1.4rem, 4vw, 2.1rem);
+}
+
+.srcs-cta__text {
+	flex: 1 1 20rem;
+}
+
+.srcs-cta__heading {
+	font-size: 1.3rem;
+	margin: 0 0 0.35rem;
+}
+
+.srcs-cta__body {
+	color: var(--srcs-muted);
+	margin: 0;
+}
+
+.srcs-cta__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
+.srcs-btn {
+	border: 1px solid var(--srcs-accent);
+	border-radius: 6px;
+	display: inline-block;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.3;
+	padding: 0.7rem 1.2rem;
+	text-decoration: none;
+}
+
+.srcs .srcs-btn--primary {
+	background: var(--srcs-accent);
+	color: var(--srcs-accent-ink);
+}
+
+.srcs .srcs-btn--ghost {
+	background: transparent;
+	color: var(--srcs-accent);
+}
+
+.srcs-btn:hover,
+.srcs-btn:focus-visible {
+	filter: brightness(1.08);
+	text-decoration: underline;
+}
+
+/* --------------------------------------------------------- Related ---- */
+
+.srcs-related {
+	margin-top: 3rem;
+}
+
+.srcs-related__title {
+	font-size: 1.1rem;
+	margin: 0 0 1rem;
+}
+
+.srcs-related__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.srcs-related__list li {
+	border-top: 1px solid var(--srcs-line);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 1rem;
+	justify-content: space-between;
+	padding: 0.85rem 0;
+}
+
+.srcs-related__outcome {
+	color: var(--srcs-muted);
+	font-size: 0.875rem;
+}
+
+@media print {
+	.srcs-cta,
+	.srcs-topics,
+	.srcs-related {
+		display: none;
+	}
+}

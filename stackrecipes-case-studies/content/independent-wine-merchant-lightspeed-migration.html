@@ -1,0 +1,189 @@
+<p class="srcs-lede">A two-register specialty wine and spirits shop, 1,800 live SKUs, £168 a month going out the door in point-of-sale subscription fees. This is the full teardown of moving that shop off Lightspeed: what we kept, what we replaced, the VAT work nobody quotes for, the 48-hour cutover, and what the three-year cost comparison actually looks like once you stop rounding in your own favour.</p>
+
+<p class="srcs-note"><strong>How to read this</strong>Nothing here is a testimonial. It is the build sheet we work to for a store of exactly this shape, with the figures written out so you can substitute your own and see whether the answer still holds. Hardware list prices, SaaS pricing tiers and VAT treatment all move — verify each line against current sources before you commit budget, and take the VAT section to your accountant rather than to a forum.</p>
+
+<h2>The Baseline</h2>
+
+<p>Before anything is designed, the existing operation gets written down in numbers rather than adjectives. For this store:</p>
+
+<ul>
+	<li><strong>2 physical registers.</strong> Both on the front counter, one primary and one used for overflow on Friday and Saturday evenings and for tastings.</li>
+	<li><strong>1,800 active SKUs.</strong> Roughly 1,350 wines, 300 spirits, and 150 non-alcohol lines — gourmet foodstuffs, glassware, gift packaging.</li>
+	<li><strong>£168 per month in recurring SaaS fees.</strong> That is the subscription line only: the POS plan plus the second register seat and the add-ons the store had accumulated. Card processing fees are separate and are <em>not</em> in that number.</li>
+</ul>
+
+<p>The £168 is the figure that matters, because it is the one that recurs whether the shop has a good month or a bad one. It buys hosted software, updates and support. It does not buy the catalogue, the customer list, or the hardware — those are already the merchant's, and the whole migration turns on proving that.</p>
+
+<p>The second thing worth writing down is what is <em>not</em> broken. The stock control worked. The staff knew the tills. Nobody was asking for new features. This is a cost migration, not a capability migration, and it should be scoped that way — the temptation to bolt on a loyalty scheme and a new e-commerce front during the same weekend is how a 48-hour cutover becomes a three-week outage.</p>
+
+<h2>The Hardware Audit</h2>
+
+<p>The hardware audit runs before the software decision, not after, because the answer changes the budget by four figures. Every device on the counter falls into one of three buckets: keep, replace, or re-provision.</p>
+
+<h3>Keep: the Star TSP143 receipt printers</h3>
+
+<p>Both registers run Star TSP143 thermal printers, and both stay. This is the single biggest saving in the audit and it is available to most shops that ask the question.</p>
+
+<ul>
+	<li>The TSP100 family is not tied to any vendor's software. On the LAN models the printer is simply a network device that accepts a print job; on USB models it presents to the host machine directly.</li>
+	<li>The cash drawers stay too — they are kicked from the printer's drawer-kick port, so as long as the printer survives the migration, so does the drawer.</li>
+	<li>Consumables do not change. The store keeps buying the same 80mm rolls it already buys.</li>
+</ul>
+
+<p>The one thing to check before promising this: the driver and connection mode. A LAN-connected TSP143 needs a reachable, <em>stable</em> address on the shop network — which is why the router work in the cutover plan below is not optional. A USB-connected unit binds to whatever machine sits under the counter, which constrains where that machine can live.</p>
+
+<h3>Replace: the rented card readers</h3>
+
+<p>The card readers were rented, proprietary, and locked to the incumbent's payment rails. They go back. In their place, one <strong>Stripe WisePOS E</strong> per register, bought outright.</p>
+
+<ul>
+	<li><strong>Owned, not rented.</strong> The rental line disappears from the monthly bill permanently. That is capital expenditure once instead of an operating cost forever.</li>
+	<li><strong>Contactless and chip &amp; PIN in one unit</strong>, driven over the network by the Stripe Terminal API rather than by a cable to a specific till — which means either register can drive either reader if one fails mid-shift.</li>
+	<li><strong>The reader is on the shop network</strong>, so it lands in the same DHCP reservation exercise as the printers.</li>
+</ul>
+
+<p class="srcs-note"><strong>Be honest about the fee side</strong>Swapping readers changes who processes the payment, and processing rates differ between providers by card type, by scheme and by whether the card is present. Model your own blended rate against twelve months of real settlement data before you treat the change as neutral. The three-year table further down deliberately excludes processing fees on <em>both</em> sides for exactly this reason — they are real money, but they are not what the subscription question turns on.</p>
+
+<h3>Re-provision: the till machines and scanners</h3>
+
+<p>The USB barcode scanners are generic keyboard-emulation devices and simply work. The counter machines are the item to check carefully: if they are ordinary computers running a current browser, they are re-provisioned and reused. If they are locked-down vendor terminals — the kind supplied as part of the subscription — they are not yours, they go back with the readers, and two replacement machines enter the budget. Establish which of these is true in week one, not on cutover night.</p>
+
+<h2>Tax &amp; Catalog Complexity</h2>
+
+<p>This is the part of a wine merchant migration that goes wrong, and it goes wrong quietly — a receipt that looks fine and a VAT return that does not.</p>
+
+<p>The shop sells two tax populations across one counter:</p>
+
+<ul>
+	<li><strong>Standard-rated at 20%:</strong> everything alcoholic, plus glassware, gift packaging and gift wrap.</li>
+	<li><strong>Zero-rated:</strong> most of the gourmet foodstuffs — plain crackers, oils, vinegars, preserves.</li>
+</ul>
+
+<p>The trap is that "food is zero-rated" is not a rule. UK VAT carves standard-rated exceptions out of the food category, and several of them sit in exactly the impulse-buy zone next to a wine till: confectionery, chocolate-covered biscuits, crisps and savoury snacks, and ice cream. A shelf of "gourmet foodstuffs" typically contains both populations, and the difference between them is not visible to a cashier at 6pm on a Friday.</p>
+
+<h3>The design rule: the cashier never decides</h3>
+
+<p>The requirement we hold to is that <strong>tax treatment is a property of the product record, decided once at catalogue level, and never a decision made at the register</strong>. Concretely:</p>
+
+<ul>
+	<li>Every one of the 1,800 SKUs carries an explicit tax class. Not a default, not an inherited category value — an explicit, audited value on the product.</li>
+	<li>The catalogue import <em>fails loudly</em> on any SKU with no tax class. A missing tax class is never silently treated as standard-rated, because a silent default is how a zero-rated line quietly starts collecting 20%.</li>
+	<li>The receipt engine groups the basket by rate at print time and prints a VAT summary block: net, VAT and gross per rate band, then the totals — on the same 80mm roll, from the same Star TSP143, with no cashier intervention.</li>
+	<li>The store's VAT registration number sits in the receipt footer template.</li>
+</ul>
+
+<h3>The two cases that need a human</h3>
+
+<p>Two things do not automate cleanly, and pretending otherwise is how you inherit someone else's problem:</p>
+
+<ol>
+	<li><strong>Gift hampers.</strong> A basket containing a bottle of wine and a jar of zero-rated preserve, sold as one product for one price, is a mixed supply and needs apportioning. Set the apportionment up as a documented policy with your accountant, encode it as a fixed split on the hamper product, and review it when the contents change.</li>
+	<li><strong>The genuinely ambiguous shelf lines.</strong> Every catalogue of this size has thirty or forty items where the rating is arguable. Pull them into a review list during the data clean, get a decision, record the reasoning next to the SKU. Doing this once during migration is cheap. Doing it under an enquiry is not.</li>
+</ol>
+
+<h2>The Cutover Plan</h2>
+
+<p>The shop closes Sunday evening and opens Tuesday morning. That is the 48 hours. Everything below assumes the data clean has already been rehearsed at least once against a full export — the window is for execution, not discovery.</p>
+
+<ol class="srcs-timeline srcs-wide">
+	<li>
+		<span class="srcs-timeline__when">Hour 0–4 — Freeze and final export</span>
+		Last trading session ends. No further purchase orders, no goods receipts, no price changes. Full CSV export out of Lightspeed: products, current stock counts, suppliers, customers, and open account balances. Every file is copied twice and checksummed before anyone touches anything else. The old system stays live and paid for — it is the rollback.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 4–12 — Database cleaning</span>
+		The real work. Deduplicate SKUs (the same wine entered twice at different vintages is the classic case), normalise vintage, producer, region and bottle size into their own fields instead of the product name, validate barcodes, and apply the tax class to every one of the 1,800 rows. Discontinued lines with zero stock and no sales in 12 months are archived rather than migrated. Import validation runs on every pass and refuses the file on any missing tax class.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 12–18 — Catalogue import and reconciliation</span>
+		Import into the new system. Reconcile counts against the export: total SKUs, total stock units, and stock value, all three matching before proceeding. Then a manual spot-check of 50 SKUs picked across categories and both tax bands — scan the physical bottle, confirm the price, confirm the rate.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 18–24 — Network and peripherals</span>
+		Static IP reservations on the router: a DHCP reservation per MAC address for both Star TSP143 printers, both counter machines, and both WisePOS E readers, all outside the dynamic pool. Reserved addresses are written on a card that stays in the till drawer. Test print from both registers, test drawer kick, pair both readers, and confirm behaviour when the reader loses Wi-Fi and reconnects.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 24–32 — Parallel run in a closed shop</span>
+		Thirty scripted test transactions against the real hardware: a mixed 20% / zero-rated basket, a zero-rated-only basket, a refund, a partial refund, a split tender, a no-sale drawer open, an aborted card payment, and an end-of-day report. Each receipt is checked line by line against the expected VAT summary. This is the gate — if the VAT block is wrong here, the go-live does not happen.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 32–40 — Staff training</span>
+		Two sessions so nobody is trained at 9am on opening day. Sell, refund, void, price override, drawer open, end of day, and what to do when the card reader does not respond. A one-page cheat sheet is taped inside each register. Permissions are set deliberately: refunds and overrides are restricted, and the owner has a PIN nobody else has.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 40–44 — Final counts and float</span>
+		Recount the fast movers and adjust for the delta since the export. Set the opening float in both drawers. Lightspeed is switched to read-only: nobody trades on it again, but it stays readable and stays subscribed for one more billing cycle.
+	</li>
+	<li>
+		<span class="srcs-timeline__when">Hour 44–48 — Go live</span>
+		Doors open with someone on site for the whole first trading session. First ten live transactions are watched end to end. End of day one, the Z-report and the card settlement are reconciled against each other before anyone goes home.
+	</li>
+</ol>
+
+<p class="srcs-note"><strong>The rollback is the subscription</strong>Keeping one final month of the old subscription is the cheapest insurance in the entire project. It costs £168 and it converts "we have to make this work tonight" into "we can reopen on the old system tomorrow". Cancel it after a clean month-end, not before.</p>
+
+<h2>3-Year P&amp;L Impact</h2>
+
+<p>Three years is the right window: it is long enough that a one-time build cost stops distorting the comparison, and short enough that nobody is pretending to forecast hardware replacement.</p>
+
+<div class="srcs-table-wrap srcs-wide" role="region" aria-label="Three-year cost comparison" tabindex="0">
+	<table class="srcs-table">
+		<caption>36-month comparison. Recurring subscription versus one-time build plus hosting. Figures exclude card processing fees and hardware capital expenditure, which apply to both scenarios — see the notes below.</caption>
+		<thead>
+			<tr>
+				<th scope="col">Line item</th>
+				<th scope="col">Stay on Lightspeed</th>
+				<th scope="col">Self-hosted stack</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">POS subscription (£168 × 36)</th>
+				<td class="srcs-neg">£6,048</td>
+				<td>£0</td>
+			</tr>
+			<tr>
+				<th scope="row">One-time setup and migration ($399)</th>
+				<td>£0</td>
+				<td>≈ £314</td>
+			</tr>
+			<tr>
+				<th scope="row">Hosting (£10 × 36)</th>
+				<td>£0</td>
+				<td>£360</td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">Three-year total</th>
+				<td class="srcs-neg">£6,048</td>
+				<td class="srcs-pos">≈ £674</td>
+			</tr>
+			<tr class="is-total">
+				<th scope="row">Difference over three years</th>
+				<td>&mdash;</td>
+				<td class="srcs-pos">≈ £5,374 retained</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<p>Read the shape of it rather than the last digit. The subscription is a rent: it scales with time and with register count, and after three years the store owns nothing. The alternative is a build cost that lands once and a hosting bill roughly the size of a phone contract. Break-even against the subscription arrives inside the first two months.</p>
+
+<h3>Notes on the numbers</h3>
+
+<ul>
+	<li><strong>Currency.</strong> The setup fee is quoted in US dollars and converted here at approximately $1.27 to £1 for comparison only. Your invoice will settle at the rate on the day.</li>
+	<li><strong>Card processing fees are excluded on both sides.</strong> They continue in either scenario, and the rates differ by provider — model them separately against your own settlement history, as flagged in the hardware audit.</li>
+	<li><strong>Hardware capital expenditure is excluded.</strong> The WisePOS E readers are bought outright, and that purchase is a real cost in year one. It is left out of the table because the table answers one question — subscription rent versus build-and-host — and because the offsetting saving, the cancelled reader rental, sits in the same place. Price both from current quotes and add the net figure to your own version.</li>
+	<li><strong>Support is not free either way.</strong> Subscription support is bundled into the £168; on a self-hosted stack it is a call to whoever built it. Decide what that arrangement is, in writing, before cutover.</li>
+	<li><strong>Nothing here accounts for a second migration.</strong> Every plan looks cheap if you assume it is the last one you will ever run.</li>
+</ul>
+
+<h2>Where this blueprint does not apply</h2>
+
+<p>Three shops in ten should not run this migration, and it is worth being direct about which:</p>
+
+<ul>
+	<li><strong>If the tills are vendor-owned terminals</strong>, the hardware saving that makes the maths work largely evaporates. Re-run the table with two replacement machines in it before deciding.</li>
+	<li><strong>If nobody on site owns the system.</strong> A self-hosted stack needs one named person who takes the call when the printer stops answering. If that person does not exist, the subscription is buying something real.</li>
+	<li><strong>If the catalogue is not in a fit state to clean.</strong> Data cleaning is the load-bearing step in the whole 48 hours. A catalogue that has never been reconciled turns an eight-hour job into a fortnight, and that discovery belongs in the rehearsal, not in the window.</li>
+</ul>
